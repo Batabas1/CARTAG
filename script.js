@@ -19,7 +19,8 @@ import {
     getDocs,
     deleteDoc,
     query,
-    orderBy
+    orderBy,
+    serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 const firebaseConfig = {
   apiKey: "AIzaSyCZA6Qzjo7NfJX_k71dljwq5VJcRaGFfOA",
@@ -97,6 +98,8 @@ console.log("Giriş yapan UID:", user?.uid);
         loginBtn.style.display = "block";
         adminPanel.style.display = "none";
     }
+
+    await mesajRozetiGuncelle();
 
 });
 logoutBtn.onclick = async function () {
@@ -661,63 +664,47 @@ parkBtn.onclick = async function () {
 
     }
 
-    sendMessageBtn.onclick = function () {
+sendMessageBtn.onclick = async function () {
+    const isim = senderName.value.trim();
+    const mesaj = senderMessage.value.trim();
 
-        if (senderMessage.value == "") {
+    if (!mesaj) {
+        alert("Mesaj boş olamaz.");
+        return;
+    }
 
-            alert("Mesaj boş olamaz.");
+    if (isim.length > 60 || mesaj.length > 2000) {
+        alert("İsim en fazla 60, mesaj en fazla 2000 karakter olabilir.");
+        return;
+    }
 
-            return;
+    const carId = new URLSearchParams(window.location.search)
+        .get("id") || "CT-X9A4P8";
 
-        }
-
-        let mesajlar =
-
-            JSON.parse(
-
-                localStorage.getItem("mesajlar")
-
-                || "[]"
-
-            );
-
-        mesajlar.push({
-
-            isim: senderName.value,
-
-            mesaj: senderMessage.value,
-
-            tarih: new Date().toLocaleString("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-})
-
+    try {
+        await addDoc(collection(db, "arabalar", carId, "mesajlar"), {
+            isim: isim,
+            mesaj: mesaj,
+            tarih: serverTimestamp()
         });
 
-        localStorage.setItem(
-
-            "mesajlar",
-
-            JSON.stringify(mesajlar)
-
-        );
-        mesajRozetiGuncelle();
-
         senderName.value = "";
-
         senderMessage.value = "";
 
-        alert("Mesaj Gönderildi.");
+        alert("Mesaj başarıyla gönderildi.");
 
         sendMessagePanel.style.display = "none";
-
         overlay.style.display = "none";
 
+        if (auth.currentUser && isOwner) {
+            mesajRozetiGuncelle();
+        }
+
+    } catch (error) {
+        console.error("Mesaj gönderme hatası:", error);
+        alert("Mesaj gönderilemedi. Tekrar deneyin.");
     }
-    //============================
+};    //============================
     // MESAJLARI GÖSTER
     //============================
 
@@ -726,115 +713,160 @@ parkBtn.onclick = async function () {
     const closeMessages = document.getElementById("closeMessages");
     const messageList = document.getElementById("messageList");
 
-    messagesBtn.onclick = function () {
+   // MESAJLARI GÖSTER
 
-        messagePanel.style.display = "block";
-        overlay.style.display = "block";
+messagesBtn.onclick = async function () {
 
-        mesajlariYukle();
-
+    if (!auth.currentUser || !isOwner) {
+        alert("Mesajları sadece araç sahibi görebilir.");
+        return;
     }
 
-    closeMessages.onclick = function () {
+    messagePanel.style.display = "block";
+    overlay.style.display = "block";
 
-        messagePanel.style.display = "none";
-        overlay.style.display = "none";
+    await mesajlariYukle();
+};
 
-    }
+closeMessages.onclick = function () {
 
-    function mesajlariYukle() {
+    messagePanel.style.display = "none";
+    overlay.style.display = "none";
+
+};
+
+
+// MESAJLARI FIREBASE'DEN YÜKLE
+
+async function mesajlariYukle() {
+
+    if (!auth.currentUser || !isOwner) return;
+
+    messageList.innerHTML = "Mesajlar yükleniyor...";
+
+    const carId = new URLSearchParams(window.location.search)
+        .get("id") || "CT-X9A4P8";
+
+    const messageTitle = document.getElementById("messageTitle");
+
+    try {
+
+        const mesajRef = collection(db, "arabalar", carId, "mesajlar");
+
+        const mesajSorgu = query(mesajRef, orderBy("tarih", "desc"));
+
+        const sonuc = await getDocs(mesajSorgu);
 
         messageList.innerHTML = "";
 
-        let mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
-        const messageTitle = document.getElementById("messageTitle");
+        messageTitle.textContent =
+            "📩 Gelen Mesajlar (" + sonuc.size + ")";
 
-messageTitle.innerHTML =
-"📩 Gelen Mesajlar (" + mesajlar.length + ")";
+        if (sonuc.empty) {
 
-        if (mesajlar.length == 0) {
-
-            messageList.innerHTML = "<center>Henüz mesaj yok.</center>";
+            messageList.innerHTML =
+                "<center>Henüz mesaj yok.</center>";
 
             return;
-
         }
 
-        mesajlar.forEach(function (item, index) {
+        sonuc.forEach(function (belge) {
 
-            let kart = document.createElement("div");
+            const item = belge.data();
 
+            const kart = document.createElement("div");
             kart.className = "messageCard";
 
-            kart.innerHTML = `
+            const isim = document.createElement("div");
+            isim.className = "msgName";
+            isim.textContent = "👤 " + (item.isim || "İsimsiz");
 
-<div class="msgName">
-👤 ${item.isim == "" ? "İsimsiz" : item.isim}
-</div>
+            const mesaj = document.createElement("div");
+            mesaj.className = "msgText";
+            mesaj.textContent = "💬 " + item.mesaj;
 
-<div class="msgText">
-💬 ${item.mesaj}
-</div>
+            const tarih = document.createElement("div");
+            tarih.className = "msgDate";
 
-<div class="msgDate">
-🕒 ${item.tarih}
-</div>
+            tarih.textContent = item.tarih
+                ? "🕒 " + item.tarih.toDate().toLocaleString("tr-TR")
+                : "🕒 Tarih bekleniyor";
 
-<button class="deleteBtn" onclick="mesajSil(${index})">
-🗑 Sil
-</button>
+            const silBtn = document.createElement("button");
+            silBtn.className = "deleteBtn";
+            silBtn.textContent = "🗑 Sil";
 
-`;
+            silBtn.onclick = async function () {
+                await mesajSil(belge.id);
+            };
+
+            kart.appendChild(isim);
+            kart.appendChild(mesaj);
+            kart.appendChild(tarih);
+            kart.appendChild(silBtn);
 
             messageList.appendChild(kart);
 
         });
-        let clear = document.createElement("button");
 
-clear.className = "deleteAllBtn";
+        const clear = document.createElement("button");
 
-clear.innerHTML = "🗑 TÜM MESAJLARI SİL";
+        clear.className = "deleteAllBtn";
+        clear.textContent = "🗑 TÜM MESAJLARI SİL";
 
-clear.onclick = function () {
+        clear.onclick = async function () {
 
-    if (confirm("Bütün mesajlar silinsin mi?")) {
+            if (!confirm("Bütün mesajlar silinsin mi?")) return;
 
-        localStorage.removeItem("mesajlar");
+            const silmeIslemleri = sonuc.docs.map(function (belge) {
+                return deleteDoc(belge.ref);
+            });
 
-        mesajlariYukle();
+            await Promise.all(silmeIslemleri);
+
+            await mesajlariYukle();
+            mesajRozetiGuncelle();
+
+        };
+
+        messageList.appendChild(clear);
+
+    } catch (error) {
+
+        console.error("Mesaj yükleme hatası:", error);
+
+        messageList.textContent =
+            "Mesajlar yüklenemedi. Firebase bağlantısını kontrol et.";
 
     }
-
-};
-
-messageList.appendChild(clear);
-
-    }
+}
 
 
+// TEK MESAJ SİL
 
-    //============================
-    // MESAJ SİL
-    //============================
+async function mesajSil(messageId) {
 
-    function mesajSil(index) {
+    if (!auth.currentUser || !isOwner) return;
 
-        let mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
+    const carId = new URLSearchParams(window.location.search)
+        .get("id") || "CT-X9A4P8";
 
-        mesajlar.splice(index, 1);
+    try {
 
-        localStorage.setItem(
-
-            "mesajlar",
-
-            JSON.stringify(mesajlar)
-
+        await deleteDoc(
+            doc(db, "arabalar", carId, "mesajlar", messageId)
         );
 
-        mesajlariYukle();
+        await mesajlariYukle();
         mesajRozetiGuncelle();
 
+    } catch (error) {
+
+        console.error("Mesaj silme hatası:", error);
+        alert("Mesaj silinemedi.");
+
     }
+}
     //============================
     // FOTOĞRAF YÜKLE
     //============================
@@ -1020,14 +1052,33 @@ restoreFile.onchange = function () {
     reader.readAsText(file);
 
 }
-function mesajRozetiGuncelle() {
+async function mesajRozetiGuncelle() {
 
     const badge = document.getElementById("messageBadge");
 
-    const mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
+    if (!auth.currentUser || !isOwner) {
+        badge.textContent = "";
+        return;
+    }
 
-    badge.innerHTML = mesajlar.length > 0 ? `(${mesajlar.length})` : "";
+    const carId = new URLSearchParams(window.location.search)
+        .get("id") || "CT-X9A4P8";
 
+    try {
+
+        const mesajRef = collection(db, "arabalar", carId, "mesajlar");
+        const sonuc = await getDocs(mesajRef);
+
+        badge.textContent = sonuc.size > 0
+            ? `(${sonuc.size})`
+            : "";
+
+    } catch (error) {
+
+        console.error("Bildirim sayacı hatası:", error);
+        badge.textContent = "";
+
+    }
 }
 const params = new URLSearchParams(window.location.search);
 
