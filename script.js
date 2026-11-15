@@ -1,0 +1,1046 @@
+// ==============================
+// CARTAG V2
+// Menü Sistemi
+// ==============================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    collection,
+    addDoc,
+    getDocs,
+    deleteDoc,
+    query,
+    orderBy
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCZA6Qzjo7NfJX_k71dljwq5VJcRaGFfOA",
+  authDomain: "cartag-ab2e3.firebaseapp.com",
+  projectId: "cartag-ab2e3",
+  storageBucket: "cartag-ab2e3.firebasestorage.app",
+  messagingSenderId: "964714702055",
+  appId: "1:964714702055:web:1f7b7b5cd4e3c6b69bee42",
+  measurementId: "G-DL0NQJKQRD"
+};
+
+const app = initializeApp(firebaseConfig);
+
+const auth = getAuth(app);
+
+const db = getFirestore(app);
+
+
+const menuBtn = document.getElementById("menuBtn");
+const closeMenu = document.getElementById("closeMenu");
+const menu = document.getElementById("menu");
+const overlay = document.getElementById("overlay");
+
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+const adminPanel = document.getElementById("adminPanel");
+let isOwner = false;
+onAuthStateChanged(auth, async (user) => {
+    console.log("Giriş yapan kullanıcı:", user);
+console.log("Giriş yapan UID:", user?.uid);
+
+    const carId = new URLSearchParams(window.location.search)
+        .get("id") || "CT-X9A4P8";
+
+    isOwner = false;
+
+    if (user) {
+    try {
+        const arac = await getDoc(doc(db, "arabalar", carId));
+        console.log(
+  "Owner alanının gerçek anahtarı:",
+  Object.entries(arac.data()).filter(([key]) =>
+    key.toLowerCase().includes("owner")
+  )
+); 
+
+        console.log("Firestore alan adları:", Object.keys(arac.data()));
+        console.log("Belge bulundu mu:", arac.exists());
+        console.log("Firebase araç verisi:", arac.data());
+        console.log("ownerUid:", JSON.stringify(arac.data()?.ownerUid));
+        console.log("Tüm veri:", JSON.stringify(arac.data()));
+        console.log("user.uid:", JSON.stringify(user.uid));
+        console.log("UID eşleşiyor mu:", arac.data()?.ownerUid === user.uid);
+
+        if (arac.exists() &&
+            arac.data().ownerUid === user.uid) {
+
+                isOwner = true;
+                loginBtn.style.display = "none";
+                adminPanel.style.display = "block";
+
+            } else {
+                loginBtn.style.display = "block";
+                adminPanel.style.display = "none";
+                alert("Bu aracın sahibi değilsiniz.");
+            }
+
+        } catch (error) {
+            console.error(error);
+            adminPanel.style.display = "none";
+        }
+
+    } else {
+        loginBtn.style.display = "block";
+        adminPanel.style.display = "none";
+    }
+
+});
+logoutBtn.onclick = async function () {
+    try {
+        await signOut(auth);
+        alert("Çıkış yapıldı.");
+    } catch (error) {
+        console.error("Çıkış hatası:", error);
+        alert("Çıkış yapılamadı.");
+    }
+};
+const profileBtn = document.getElementById("profileBtn");
+
+const profilePanel = document.getElementById("profilePanel");
+
+const closeProfile = document.getElementById("closeProfile");
+
+
+// Menü Aç
+
+menuBtn.onclick = function () {
+
+    menu.style.right = "0";
+
+    overlay.style.display = "block";
+
+}
+
+
+// Menü Kapat
+
+closeMenu.onclick = function () {
+
+    menu.style.right = "-320px";
+
+    overlay.style.display = "none";
+
+}
+
+
+// Arka plana basınca kapa
+
+overlay.onclick = function () {
+
+    menu.style.right = "-320px";
+
+    overlay.style.display = "none";
+
+    profilePanel.style.display = "none";
+
+}
+
+
+
+// ==============================
+// Giriş Sistemi
+// ==============================
+
+loginBtn.onclick = async function () {
+
+    const email = prompt("E-posta adresin:");
+    if (!email) return;
+
+    const sifre = prompt("Şifren:");
+    if (!sifre) return;
+
+    try {
+        await signInWithEmailAndPassword(auth, email, sifre);
+
+        guncelle();
+
+        alert("Giriş Başarılı!");
+
+    } catch (error) {
+        console.error("Giriş hatası:", error);
+        alert("Giriş başarısız. E-posta veya şifreni kontrol et.");
+    }
+
+};
+
+
+    // ==============================
+    // Profil Paneli
+    // ==============================
+
+    profileBtn.onclick = function () {
+
+        profilePanel.style.display = "block";
+
+    }
+
+
+    closeProfile.onclick = function () {
+
+        profilePanel.style.display = "none";
+
+    }
+
+
+
+    // ==============================
+    // INPUTLAR
+    // ==============================
+
+    const brand = document.getElementById("brand");
+
+    const model = document.getElementById("model");
+
+    const instagram = document.getElementById("instagram");
+
+    const phone = document.getElementById("phone");
+
+    const photo = document.getElementById("photo");
+
+
+
+    const showBrand = document.getElementById("showBrand");
+
+    const showModel = document.getElementById("showModel");
+
+    const showInstagram = document.getElementById("showInstagram");
+
+    const showPhone = document.getElementById("showPhone");
+
+    const showPhoto = document.getElementById("showPhoto");
+
+    const showMessage = document.getElementById("showMessage");
+
+    const showLocation = document.getElementById("showLocation");
+
+    const showPark = document.getElementById("showPark");
+
+
+
+    const saveBtn = document.getElementById("saveBtn");
+    // ==============================
+    // KAYDET
+    // ==============================
+
+    saveBtn.onclick = async function () {
+
+    if (!auth.currentUser || !isOwner) {
+        alert("Bu işlemi sadece araç sahibi yapabilir.");
+        return;
+    }
+
+    const carId = new URLSearchParams(window.location.search).get("id") || "CT-X9A4P8";
+        
+
+await setDoc(doc(db, "arabalar", carId), {
+
+    ownerUid: auth.currentUser.uid,
+    marka: brand.value,
+    model: model.value,
+    telefon: phone.value,
+    instagram: instagram.value,
+
+    showBrand: showBrand.checked,
+    showModel: showModel.checked,
+    showInstagram: showInstagram.checked,
+    showPhone: showPhone.checked,
+    showMessage: showMessage.checked,
+    showLocation: showLocation.checked,
+    showPark: showPark.checked
+
+}, { merge: true });
+
+        //localStorage.setItem("brand", brand.value);
+        //localStorage.setItem("model", model.value);
+        //localStorage.setItem("instagram", instagram.value);
+        //localStorage.setItem("phone", phone.value);
+
+        localStorage.setItem("showBrand", showBrand.checked);
+        localStorage.setItem("showModel", showModel.checked);
+        localStorage.setItem("showInstagram", showInstagram.checked);
+        localStorage.setItem("showPhone", showPhone.checked);
+        localStorage.setItem("showPhoto", showPhoto.checked);
+        localStorage.setItem("showMessage", showMessage.checked);
+        localStorage.setItem("showLocation", showLocation.checked);
+        localStorage.setItem("showPark", showPark.checked);
+
+        guncelle();
+
+        profilePanel.style.display = "none";
+
+        alert("Profil Kaydedildi");
+
+    }
+
+
+
+    // ==============================
+    // SAYFA AÇILINCA
+    // ==============================
+
+    window.onload = function () {
+        console.log("window.onload çalıştı");
+        const params = new URLSearchParams(window.location.search);
+
+const carId = params.get("id") || "CT-X9A4P8";
+
+const aracRef = doc(db, "arabalar", carId);
+
+getDoc(aracRef).then((arac) => {
+
+    if (arac.exists()) {
+
+        const veri = arac.data();
+
+        brand.value = veri.marka || "";
+        model.value = veri.model || "";
+        phone.value = veri.telefon || "";
+        instagram.value = veri.instagram || "";
+
+        showBrand.checked = veri.showBrand ?? true;
+        showModel.checked = veri.showModel ?? true;
+        showInstagram.checked = veri.showInstagram ?? true;
+        showPhone.checked = veri.showPhone ?? true;
+        showLocation.checked = veri.showLocation ?? true;
+        showPark.checked = veri.showPark ?? true;
+        showPark.checked = veri.showPark ?? true;
+
+        guncelle();   // <<< BURAYA TAŞI
+
+    }
+
+});
+        mesajRozetiGuncelle();
+        const carImage = document.getElementById("carImage");
+
+        if (showPhoto.checked) {
+
+            carImage.style.display = "block";
+
+        } else {
+
+            carImage.style.display = "none";
+
+        }
+        let kayitliFoto = localStorage.getItem("carPhoto");
+
+        if (kayitliFoto) {
+
+            document.getElementById("carImage").src =
+                kayitliFoto;
+
+        }
+
+    }
+
+
+
+    // ==============================
+    // EKRANI GÜNCELLE
+    // ==============================
+
+    function guncelle() {
+
+        const carTitle = document.getElementById("carTitle");
+
+        const instagramBtn = document.getElementById("instagramBtn");
+
+        const phoneBtn = document.getElementById("phoneBtn");
+
+        const messageBtn = document.getElementById("messageBtn");
+
+        const locationBtn = document.getElementById("locationBtn");
+
+        const parkBtn = document.getElementById("parkBtn");
+
+
+
+        // Araç Adı
+
+        let yazi = "";
+
+        if (showBrand.checked) {
+
+            yazi += brand.value + " ";
+
+        }
+
+        if (showModel.checked) {
+
+            yazi += model.value;
+
+        }
+
+        if (yazi == "") {
+
+            yazi = "Araç Eklenmedi";
+
+        }
+
+        carTitle.innerHTML = yazi;
+
+
+
+        // Instagram
+
+        instagramBtn.style.display =
+
+            showInstagram.checked
+
+                ?
+
+                "block"
+
+                :
+
+                "none";
+
+
+
+        // Telefon
+
+        phoneBtn.style.display =
+
+            showPhone.checked
+
+                ?
+
+                "block"
+
+                :
+
+                "none";
+
+
+
+        // Mesaj
+
+        messageBtn.style.display =
+
+            showMessage.checked
+
+                ?
+
+                "block"
+
+                :
+
+                "none";
+
+
+
+        // Konum
+
+        locationBtn.style.display =
+
+            showLocation.checked
+
+                ?
+
+                "block"
+
+                :
+
+                "none";
+
+
+
+        // Park
+
+        // Park
+
+if (loginBtn.style.display == "none") {
+
+    parkBtn.style.display =
+        showPark.checked ? "block" : "none";
+
+} else {
+
+    parkBtn.style.display = "none";
+
+}
+    }
+    // ==============================
+    // INSTAGRAM
+    // ==============================
+
+    const instagramBtn = document.getElementById("instagramBtn");
+
+    instagramBtn.onclick = function () {
+
+    let hesap = instagram.value.trim();
+
+    if (hesap == "") {
+
+        alert("Instagram hesabı girilmemiş.");
+
+        return;
+
+    }
+
+    window.open(
+        "https://instagram.com/" + hesap,
+        "_blank"
+    );
+
+}
+    // ==============================
+    // TELEFON
+    // ==============================
+
+    const phoneBtn = document.getElementById("phoneBtn");
+
+    phoneBtn.onclick = function () {
+
+        let tel = phone.value.trim();
+
+        if (tel == null || tel == "") {
+
+            alert("Telefon numarası girilmemiş.");
+
+            return;
+
+        }
+
+        window.location.href = "tel:" + tel;
+
+    }
+    // ==============================
+    // KONUM
+    // ==============================
+
+    const locationBtn = document.getElementById("locationBtn");
+
+    locationBtn.onclick = async function () {
+
+    const carId =
+    new URLSearchParams(window.location.search).get("id") || "CT-X9A4P8";
+
+const arac = await getDoc(doc(db, "arabalar", carId));
+
+if (!arac.exists()) {
+
+    alert("Araç bulunamadı.");
+
+    return;
+
+}
+
+const veri = arac.data();
+
+const lat = veri.parkLat;
+const lng = veri.parkLng;
+
+if (!lat || !lng) {
+
+    alert("Henüz park konumu kaydedilmemiş.");
+
+    return;
+
+}
+
+window.open(
+
+    `https://www.google.com/maps?q=${lat},${lng}`,
+
+    "_blank"
+
+);
+
+}
+    // ==============================
+    // PARK KAYDET
+    // ==============================
+
+    const parkBtn = document.getElementById("parkBtn");
+
+    
+parkBtn.onclick = async function () {
+
+    if (!auth.currentUser || !isOwner) {
+        alert("Park konumunu sadece araç sahibi kaydedebilir.");
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        alert("Tarayıcınız konum özelliğini desteklemiyor.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+
+        async function (pos) {
+
+            try {
+                const carId =
+                    new URLSearchParams(window.location.search).get("id")
+                    || "CT-X9A4P8";
+
+                await setDoc(doc(db, "arabalar", carId), {
+                    parkLat: pos.coords.latitude,
+                    parkLng: pos.coords.longitude
+                }, { merge: true });
+
+                alert("Park konumu başarıyla kaydedildi!");
+
+            } catch (error) {
+                console.error("Firebase kayıt hatası:", error);
+                alert("Konum kaydedilemedi. Firebase bağlantısını kontrol et.");
+            }
+
+        },
+
+        function (error) {
+
+            if (error.code === 1) {
+                alert("Konum izni vermen gerekiyor.");
+            } else if (error.code === 2) {
+                alert("Konum bilgisi alınamadı.");
+            } else if (error.code === 3) {
+                alert("Konum isteği zaman aşımına uğradı.");
+            } else {
+                alert("Konum alınırken bir hata oluştu.");
+            }
+
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+
+    );
+
+};
+
+    //============================
+    // MESAJ GÖNDER
+    //============================
+
+    const messageBtn = document.getElementById("messageBtn");
+
+    const sendMessagePanel = document.getElementById("sendMessagePanel");
+
+    const closeSendMessage = document.getElementById("closeSendMessage");
+
+    const sendMessageBtn = document.getElementById("sendMessageBtn");
+
+    const senderName = document.getElementById("senderName");
+
+    const senderMessage = document.getElementById("senderMessage");
+
+    messageBtn.onclick = function () {
+
+        sendMessagePanel.style.display = "block";
+
+        overlay.style.display = "block";
+
+    }
+
+    closeSendMessage.onclick = function () {
+
+        sendMessagePanel.style.display = "none";
+
+        overlay.style.display = "none";
+
+    }
+
+    sendMessageBtn.onclick = function () {
+
+        if (senderMessage.value == "") {
+
+            alert("Mesaj boş olamaz.");
+
+            return;
+
+        }
+
+        let mesajlar =
+
+            JSON.parse(
+
+                localStorage.getItem("mesajlar")
+
+                || "[]"
+
+            );
+
+        mesajlar.push({
+
+            isim: senderName.value,
+
+            mesaj: senderMessage.value,
+
+            tarih: new Date().toLocaleString("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+})
+
+        });
+
+        localStorage.setItem(
+
+            "mesajlar",
+
+            JSON.stringify(mesajlar)
+
+        );
+        mesajRozetiGuncelle();
+
+        senderName.value = "";
+
+        senderMessage.value = "";
+
+        alert("Mesaj Gönderildi.");
+
+        sendMessagePanel.style.display = "none";
+
+        overlay.style.display = "none";
+
+    }
+    //============================
+    // MESAJLARI GÖSTER
+    //============================
+
+    const messagesBtn = document.getElementById("messagesBtn");
+    const messagePanel = document.getElementById("messagePanel");
+    const closeMessages = document.getElementById("closeMessages");
+    const messageList = document.getElementById("messageList");
+
+    messagesBtn.onclick = function () {
+
+        messagePanel.style.display = "block";
+        overlay.style.display = "block";
+
+        mesajlariYukle();
+
+    }
+
+    closeMessages.onclick = function () {
+
+        messagePanel.style.display = "none";
+        overlay.style.display = "none";
+
+    }
+
+    function mesajlariYukle() {
+
+        messageList.innerHTML = "";
+
+        let mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
+        const messageTitle = document.getElementById("messageTitle");
+
+messageTitle.innerHTML =
+"📩 Gelen Mesajlar (" + mesajlar.length + ")";
+
+        if (mesajlar.length == 0) {
+
+            messageList.innerHTML = "<center>Henüz mesaj yok.</center>";
+
+            return;
+
+        }
+
+        mesajlar.forEach(function (item, index) {
+
+            let kart = document.createElement("div");
+
+            kart.className = "messageCard";
+
+            kart.innerHTML = `
+
+<div class="msgName">
+👤 ${item.isim == "" ? "İsimsiz" : item.isim}
+</div>
+
+<div class="msgText">
+💬 ${item.mesaj}
+</div>
+
+<div class="msgDate">
+🕒 ${item.tarih}
+</div>
+
+<button class="deleteBtn" onclick="mesajSil(${index})">
+🗑 Sil
+</button>
+
+`;
+
+            messageList.appendChild(kart);
+
+        });
+        let clear = document.createElement("button");
+
+clear.className = "deleteAllBtn";
+
+clear.innerHTML = "🗑 TÜM MESAJLARI SİL";
+
+clear.onclick = function () {
+
+    if (confirm("Bütün mesajlar silinsin mi?")) {
+
+        localStorage.removeItem("mesajlar");
+
+        mesajlariYukle();
+
+    }
+
+};
+
+messageList.appendChild(clear);
+
+    }
+
+
+
+    //============================
+    // MESAJ SİL
+    //============================
+
+    function mesajSil(index) {
+
+        let mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
+
+        mesajlar.splice(index, 1);
+
+        localStorage.setItem(
+
+            "mesajlar",
+
+            JSON.stringify(mesajlar)
+
+        );
+
+        mesajlariYukle();
+        mesajRozetiGuncelle();
+
+    }
+    //============================
+    // FOTOĞRAF YÜKLE
+    //============================
+
+    photo.addEventListener("change", function () {
+
+        const dosya = this.files[0];
+
+        if (!dosya) return;
+
+        const okuyucu = new FileReader();
+
+        okuyucu.onload = function (e) {
+
+            localStorage.setItem(
+                "carPhoto",
+                e.target.result
+            );
+
+            document.getElementById("carImage").src =
+                e.target.result;
+
+        };
+
+        okuyucu.readAsDataURL(dosya);
+
+    });
+    //============================
+    // AYARLAR
+    //============================
+
+    const settingsBtn = document.getElementById("settingsBtn");
+
+    const settingsPanel = document.getElementById("settingsPanel");
+
+    const closeSettings = document.getElementById("closeSettings");
+
+    settingsBtn.onclick = function () {
+
+        settingsPanel.style.display = "block";
+
+        overlay.style.display = "block";
+
+    }
+
+    closeSettings.onclick = function () {
+
+        settingsPanel.style.display = "none";
+
+        overlay.style.display = "none";
+
+    }
+    //============================
+    // ŞİFRE
+    //============================
+
+    const changePasswordBtn = document.getElementById("changePasswordBtn");
+
+    changePasswordBtn.onclick = function () {
+
+        let yeni = prompt("Yeni Şifre");
+
+        if (yeni == "" || yeni == null) {
+
+            return;
+
+        }
+
+        localStorage.setItem(
+
+            "cartagPassword",
+
+            yeni
+
+        );
+
+        alert("Şifre Değiştirildi.");
+
+    }
+    //============================
+    // TÜM VERİLERİ SİL
+    //============================
+
+    const resetBtn = document.getElementById("resetBtn");
+
+    resetBtn.onclick = function () {
+
+        if (confirm("Bütün bilgiler silinsin mi?")) {
+
+            localStorage.clear();
+
+            location.reload();
+
+        }
+
+    }
+    
+//============================
+// YEDEK AL
+//============================
+
+const backupBtn = document.getElementById("backupBtn");
+
+backupBtn.onclick = function () {
+
+    let veri = {};
+
+    for (let i = 0; i < localStorage.length; i++) {
+
+        let key = localStorage.key(i);
+
+        veri[key] = localStorage.getItem(key);
+
+    }
+
+    const blob = new Blob(
+
+        [JSON.stringify(veri, null, 4)],
+
+        { type: "application/json" }
+
+    );
+
+    const a = document.createElement("a");
+
+    a.href = URL.createObjectURL(blob);
+
+    a.download = "cartag_backup.json";
+
+    a.click();
+
+    URL.revokeObjectURL(a.href);
+
+    alert("Yedek oluşturuldu.");
+
+}
+//============================
+// YEDEĞİ GERİ YÜKLE
+//============================
+
+const restoreBtn = document.getElementById("restoreBtn");
+
+const restoreFile = document.getElementById("restoreFile");
+
+restoreBtn.onclick = function () {
+
+    restoreFile.click();
+
+}
+
+restoreFile.onchange = function () {
+
+    const file = this.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+
+        const veri = JSON.parse(e.target.result);
+
+        localStorage.clear();
+
+        for (let key in veri) {
+
+            localStorage.setItem(
+
+                key,
+
+                veri[key]
+
+            );
+
+        }
+
+        alert("Yedek başarıyla geri yüklendi.");
+
+        location.reload();
+
+    }
+
+    reader.readAsText(file);
+
+}
+function mesajRozetiGuncelle() {
+
+    const badge = document.getElementById("messageBadge");
+
+    const mesajlar = JSON.parse(localStorage.getItem("mesajlar") || "[]");
+
+    badge.innerHTML = mesajlar.length > 0 ? `(${mesajlar.length})` : "";
+
+}
+const params = new URLSearchParams(window.location.search);
+
+const carId = params.get("id") || "CT-X9A4P8";
+
+const aracRef = doc(db, "arabalar", carId);
+
+const arac = await getDoc(aracRef);
+
+console.log("ID =", carId);
+
+if (arac.exists()) {
+    console.log("Firebase Bağlandı!");
+    console.log(arac.data());
+} else {
+    console.log("Araç bulunamadı.");
+}
