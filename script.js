@@ -315,6 +315,7 @@ getDoc(aracRef).then((arac) => {
         showModel.checked = veri.showModel ?? true;
         showInstagram.checked = veri.showInstagram ?? true;
         showPhone.checked = veri.showPhone ?? true;
+        showMessage.checked = veri.showMessage ?? false;
         showLocation.checked = veri.showLocation ?? true;
         showPark.checked = veri.showPark ?? true;
         showPark.checked = veri.showPark ?? true;
